@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CTV Dashboard — dentsu NL 2026</title>
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const statusData = {
+  'Done':   { budget:554726, income:47167, camps:43 },
+  'Live':   { budget:105781, income:11202, camps:7  },
+  'Set up': { budget:135788, income:13805, camps:8  },
+};
+const monthChartData = {
+  labels: ['Jan','Feb','Mrt','Apr','Mei','Jun','Jul','Aug','Sep'],
+  Done:   [110000,61029,76289,94174,48696,32027,91575,33655,6280],
+  Live:   [0,0,0,0,0,0,0,85781,20000],
+  'Set up':[0,0,0,0,0,0,0,10000,125788],
+};
+const brands = [
+  { brand:'DPG',        budget:179187,income:15253,margin:8.52, cpm:23.16,camps:17,statuses:{'Done':14,'Live':1,'Set up':2}},
+  { brand:'Heinz',      budget:110000,income:8613, margin:7.83, cpm:23.21,camps:3, statuses:{'Done':2,'Live':1}},
+  { brand:'Arla',       budget:99500, income:8497, margin:8.54, cpm:23.14,camps:8, statuses:{'Done':7,'Set up':1}},
+  { brand:'GAMMA',      budget:47500, income:5643, margin:11.88,cpm:18.75,camps:4, statuses:{'Live':2,'Set up':2}},
+  { brand:'Zalando',    budget:45500, income:5405, margin:11.88,cpm:23.20,camps:2, statuses:{'Set up':2}},
+  { brand:'PPG',        budget:40140, income:3338, margin:8.32, cpm:23.13,camps:4, statuses:{'Done':2,'Live':1,'Set up':1}},
+  { brand:'Fastned',    budget:40000, income:2495, margin:6.24, cpm:23.31,camps:2, statuses:{'Done':2}},
+  { brand:'Xpeng',      budget:65800, income:6239, margin:9.48, cpm:23.29,camps:3, statuses:{'Done':2,'Live':1}},
+  { brand:'Intergamma', budget:35000, income:4158, margin:11.88,cpm:24.23,camps:3, statuses:{'Done':3}},
+  { brand:'FastNed',    budget:30000, income:2851, margin:9.50, cpm:23.00,camps:1, statuses:{'Done':1}},
+  { brand:'Mazda',      budget:20000, income:1663, margin:8.32, cpm:23.64,camps:1, statuses:{'Set up':1}},
+  { brand:'Paulig',     budget:18540, income:1682, margin:9.07, cpm:23.00,camps:5, statuses:{'Done':5}},
+  { brand:'Kellogs',    budget:18691, income:1554, margin:8.32, cpm:23.29,camps:2, statuses:{'Done':2}},
+  { brand:'Pandora',    budget:16437, income:1543, margin:9.39, cpm:23.00,camps:1, statuses:{'Done':1}},
+  { brand:'BMW',        budget:15000, income:1782, margin:11.88,cpm:23.40,camps:1, statuses:{'Live':1}},
+  { brand:'Hunkemoller',budget:15000, income:1456, margin:9.70, cpm:23.00,camps:1, statuses:{'Done':1}},
+];
+
+// ============================================================
+// FILTER STATE
+// ============================================================
+let activeFilters = new Set();
+function toggleFilter(s){if(activeFilters.has(s))activeFilters.delete(s);else activeFilters.add(s);refreshAll();}
+function clearFilters(){activeFilters.clear();refreshAll();}
+function fmt(v){const k=v/1000;if(k>=100)return'€'+Math.round(k)+'K';return'€'+(Number.isInteger(k)?k:k.toFixed(1).replace('.0',''))+'K';}
+
+function refreshAll(){
+  const active=activeFilters.size>0?[...activeFilters]:['Done','Live','Set up'];
+  const isFiltered=activeFilters.size>0;
+  const kpiMap={'Done':'kpi-done','Live':'kpi-live','Set up':'kpi-setup'};
+  Object.entries(kpiMap).forEach(([s,id])=>{
+    const el=document.getElementById(id);
+    el.classList.remove('active','dimmed');
+    if(isFiltered)el.classList.add(activeFilters.has(s)?'active':'dimmed');
+  });
+  document.getElementById('filter-reset').style.display=isFiltered?'inline':'none';
+  let totalBudget=0,totalIncome=0,totalCamps=0;
+  active.forEach(s=>{if(statusData[s]){totalBudget+=statusData[s].budget;totalIncome+=statusData[s].income;totalCamps+=statusData[s].camps;}});
+  const marge=totalBudget>0?totalIncome/totalBudget*100:0;
+  document.getElementById('val-total').textContent=fmt(totalBudget);
+  document.getElementById('count-total').textContent=totalCamps+' campagnes';
+  document.getElementById('val-income').textContent=fmt(totalIncome);
+  document.getElementById('sub-income').textContent=isFiltered?'selectie':'van €602K budget';
+  document.getElementById('val-margin').textContent=marge.toFixed(1).replace('.',',')+  '%';
+  document.getElementById('sub-margin').textContent=isFiltered?'gefilterd':'range 7,5%–11,9%';
+  document.getElementById('kpi-total').querySelector('.kpi-label').textContent=isFiltered?'Subtotaal':'Totaal';
+  document.getElementById('kpi-income').querySelector('.kpi-label').textContent=isFiltered?'Income (selectie)':'Total Income YTD';
+  const tot=totalBudget||1;
+  [['Done','pace-done'],['Live','pace-live'],['Set up','pace-setup']].forEach(([s,id])=>{
+    const seg=document.getElementById(id);
+    if(isFiltered&&!activeFilters.has(s)){seg.style.width='0%';seg.textContent='';return;}
+    const pct=(statusData[s].budget/tot*100).toFixed(1);
+    seg.style.width=pct+'%';
+    seg.textContent=parseFloat(pct)>5?fmt(statusData[s].budget)+' ('+pct+'%)':'';
+  });
+  drawMonthChart(active);
+  renderTable();
+}
+
+// ============================================================
+// PURE CANVAS CHARTS (no external library)
+// ============================================================
+function drawMonthChart(active){
+  const canvas=document.getElementById('monthChart');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.offsetWidth||canvas.width; canvas.width=W;
+  const H=canvas.offsetHeight||220; canvas.height=H;
+  ctx.clearRect(0,0,W,H);
+  const labels=monthChartData.labels;
+  const series=[];
+  if(active.includes('Done'))   series.push({data:monthChartData.Done,   color:'rgba(52,199,123,.85)', label:'Done'});
+  if(active.includes('Live'))   series.push({data:monthChartData.Live,   color:'rgba(74,158,255,.85)', label:'Live'});
+  if(active.includes('Set up')) series.push({data:monthChartData['Set up'],color:'rgba(245,166,35,.85)',label:'Set Up'});
+  const pad={l:44,r:12,t:10,b:30};
+  const cW=W-pad.l-pad.r, cH=H-pad.t-pad.b;
+  const n=labels.length;
+  const grpW=cW/n;
+  const barW=grpW*0.72;
+  // stacked max
+  let maxVal=0;
+  for(let i=0;i<n;i++){let s=0;series.forEach(sr=>s+=sr.data[i]||0);if(s>maxVal)maxVal=s;}
+  maxVal=Math.ceil(maxVal/20000)*20000||100000;
+  // grid
+  ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=1;
+  for(let g=0;g<=4;g++){
+    const y=pad.t+cH-(cH*g/4);
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cW,y);ctx.stroke();
+    ctx.fillStyle='#6b7494';ctx.font='10px DM Sans,sans-serif';ctx.textAlign='right';
+    ctx.fillText('€'+(maxVal*g/4/1000)+'K',pad.l-4,y+3);
+  }
+  // bars
+  for(let i=0;i<n;i++){
+    let stackBase=0;
+    series.forEach(sr=>{
+      const val=sr.data[i]||0;
+      if(val<=0)return;
+      const bH=cH*val/maxVal;
+      const x=pad.l+i*grpW+(grpW-barW)/2;
+      const y=pad.t+cH-bH-cH*stackBase/maxVal;
+      ctx.fillStyle=sr.color;
+      ctx.beginPath();ctx.roundRect(x,y,barW,bH,3);ctx.fill();
+      stackBase+=val;
+    });
+    ctx.fillStyle='#6b7494';ctx.font='10px DM Sans,sans-serif';ctx.textAlign='center';
+    ctx.fillText(labels[i],pad.l+i*grpW+grpW/2,H-8);
+  }
+  // legend
+  let lx=pad.l;
+  series.forEach(sr=>{
+    ctx.fillStyle=sr.color;ctx.fillRect(lx,4,10,8);
+    ctx.fillStyle='#6b7494';ctx.font='10px DM Sans,sans-serif';ctx.textAlign='left';
+    ctx.fillText(sr.label,lx+13,12);
+    lx+=ctx.measureText(sr.label).width+30;
+  });
+}
+
+function drawStatusDonut(){
+  const canvas=document.getElementById('statusChart');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.offsetWidth||canvas.width; canvas.width=W;
+  const H=canvas.offsetHeight||220; canvas.height=H;
+  ctx.clearRect(0,0,W,H);
+  const data=[
+    {v:554726,c:'rgba(52,199,123,.85)',l:'Done',   n:42},
+    {v:85781, c:'rgba(74,158,255,.85)', l:'Live',   n:6},
+    {v:135788,c:'rgba(245,166,35,.85)', l:'Set Up', n:6},
+  ];
+  const total=data.reduce((a,d)=>a+d.v,0);
+  const cx=W/2, cy=H/2-16, r=Math.min(cx,cy)-20, ri=r*0.62;
+  let angle=-Math.PI/2;
+  data.forEach(d=>{
+    const sweep=2*Math.PI*d.v/total;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,angle,angle+sweep);ctx.closePath();
+    ctx.fillStyle=d.c;ctx.fill();
+    ctx.beginPath();ctx.arc(cx,cy,ri,0,2*Math.PI);ctx.fillStyle='#181c27';ctx.fill();
+    angle+=sweep;
+  });
+  // legend
+  const lY=H-36;
+  data.forEach((d,i)=>{
+    const lx=i*(W/3)+12;
+    ctx.fillStyle=d.c;ctx.beginPath();ctx.arc(lx+5,lY+5,5,0,2*Math.PI);ctx.fill();
+    ctx.fillStyle='#6b7494';ctx.font='10px DM Sans,sans-serif';ctx.textAlign='left';
+    ctx.fillText(d.l+' €'+(d.v/1000|0)+'K',lx+13,lY+9);
+  });
+}
+
+function drawSupplyDonut(){
+  const canvas=document.getElementById('supplyDonut');
+  const ctx=canvas.getContext('2d');
+  const size=180; canvas.width=size; canvas.height=size;
+  ctx.clearRect(0,0,size,size);
+  const data=[
+    {v:297000,c:'#4a9eff',l:'Talpa'},
+    {v:202000,c:'#34c77b',l:'Amazon'},
+    {v:70000, c:'#ff6b9d',l:'Marge'},
+    {v:29000, c:'#a78bfa',l:'LG'},
+    {v:17000, c:'#f5a623',l:'Titan'},
+    {v:6000,  c:'#6b7494',l:'DSP'},
+  ];
+  const total=data.reduce((a,d)=>a+d.v,0);
+  const cx=size/2,cy=size/2,r=size/2-4,ri=r*0.58;
+  let angle=-Math.PI/2;
+  data.forEach(d=>{
+    const sweep=2*Math.PI*d.v/total;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,angle,angle+sweep);ctx.closePath();
+    ctx.fillStyle=d.c;ctx.fill();
+    angle+=sweep;
+  });
+  ctx.beginPath();ctx.arc(cx,cy,ri,0,2*Math.PI);ctx.fillStyle='#181c27';ctx.fill();
+  ctx.fillStyle='#e8eaf0';ctx.font='bold 13px DM Sans,sans-serif';ctx.textAlign='center';
+  ctx.fillText('€796K',cx,cy-4);
+  ctx.fillStyle='#6b7494';ctx.font='9px DM Sans,sans-serif';
+  ctx.fillText('totaal 2026',cx,cy+10);
+}
+
+// ============================================================
+// TABLE
+// ============================================================
+let sortCol=1,sortDir=-1;
+function renderTable(){
+  const tbody=document.getElementById('brandTable');
+  const totalBudget=brands.reduce((a,b)=>a+b.budget,0);
+  const sorted=[...brands].sort((a,b)=>{
+    let av,bv;
+    if(sortCol===0){av=a.brand;bv=b.brand;}
+    else if(sortCol===6){av=a.camps;bv=b.camps;}
+    else if(sortCol===1){av=a.budget;bv=b.budget;}
+    else if(sortCol===7){av=a.budget/totalBudget;bv=b.budget/totalBudget;}
+    else if(sortCol===2){av=a.income;bv=b.income;}
+    else if(sortCol===8){av=a.income/a.camps;bv=b.income/b.camps;}
+    else if(sortCol===3){av=a.margin;bv=b.margin;}
+    else if(sortCol===4){av=a.cpm;bv=b.cpm;}
+    else{av=Object.keys(a.statuses).join();bv=Object.keys(b.statuses).join();}
+    return typeof av==='string'?av.localeCompare(bv)*sortDir:(av-bv)*sortDir;
+  });
+  tbody.innerHTML=sorted.map(c=>{
+    const badges=Object.entries(c.statuses).map(([s,n])=>{
+      const cl=s==='Done'?'badge-done':s==='Live'?'badge-live':'badge-setup';
+      return`<span class="status-badge ${cl}">${s}${n>1?' ×'+n:''}</span>`;
+    }).join('');
+    const mc=c.margin>=10?'var(--done)':c.margin<7?'var(--margin)':'var(--muted)';
+    const pct=(c.budget/totalBudget*100).toFixed(1).replace('.',',')+'%';
+    const incPerCamp=fmt(c.income/c.camps);
+    // mini bar for % aandeel
+    const barW=Math.round(c.budget/totalBudget*80);
+    const pctBar=`<div style="display:flex;align-items:center;gap:5px"><div style="width:${barW}px;height:5px;background:var(--income);border-radius:3px;opacity:.7"></div><span>${pct}</span></div>`;
+    return`<tr>
+      <td>${c.brand}</td>
+      <td style="text-align:center"><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);font-size:11px;color:var(--text);font-weight:600">${c.camps}</span></td>
+      <td>${fmt(c.budget)}</td>
+      <td>${pctBar}</td>
+      <td>${fmt(c.income)}</td>
+      <td style="color:var(--income)">${incPerCamp}</td>
+      <td style="color:${mc}">${c.margin.toFixed(1).replace('.',',')}%</td>
+      <td>€${c.cpm.toFixed(2).replace('.',',')}</td>
+      <td>${badges}</td>
+    </tr>`;
+  }).join('');
+}
+function sortTable(col){
+  if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=-1;}
+  for(let i=0;i<=8;i++){const el=document.getElementById('sort-'+i);if(el){el.textContent=i===col?(sortDir===-1?'↓':'↑'):'↕';el.style.opacity=i===col?'1':'0.5';}}
+  renderTable();
+}
+
+// Init + redraw on resize
+function initCharts(){
+  drawMonthChart(['Done','Live','Set up']);
+  drawStatusDonut();
+  drawSupplyDonut();
+}
+window.addEventListener('load', function(){
+  initCharts();
+  refreshAll();
+  renderTable();
+});
+window.addEventListener('resize',()=>drawMonthChart([...activeFilters].length>0?[...activeFilters]:['Done','Live','Set up']));
+
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+  :root {
+    --bg:#0f1117;--surface:#181c27;--surface2:#1e2332;--border:#2a3045;
+    --text:#e8eaf0;--muted:#6b7494;
+    --done:#34c77b;--live:#4a9eff;--setup:#f5a623;
+    --total:#a78bfa;--income:#22d3c8;--margin:#ff6b9d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px;}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;}
+  .header h1{font-size:22px;font-weight:700;letter-spacing:-0.3px;color:#fff;}
+  .header p{font-size:12px;color:var(--muted);margin-top:3px;font-family:'DM Mono',monospace;}
+  .badge{font-size:11px;font-family:'DM Mono',monospace;background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:20px;white-space:nowrap;}
+  .kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px;}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 14px;position:relative;overflow:hidden;transition:transform .15s,border-color .15s;}
+  .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent,var(--border));border-radius:12px 12px 0 0;}
+  .kpi.done{--accent:var(--done);}.kpi.live{--accent:var(--live);}.kpi.setup{--accent:var(--setup);}
+  .kpi.total{--accent:var(--total);}.kpi.income{--accent:var(--income);}.kpi.marginKPI{--accent:var(--margin);}
+  .kpi.clickable{cursor:pointer;}
+  .kpi.clickable:hover{transform:translateY(-2px);border-color:var(--accent,var(--border));}
+  .kpi.active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface));box-shadow:0 0 0 1px var(--accent);}
+  .kpi.dimmed{opacity:.35;}
+  .kpi-label{font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+  .kpi-value{font-size:22px;font-weight:700;color:#fff;letter-spacing:-.5px;line-height:1;}
+  .kpi-sub{font-size:11px;color:var(--muted);margin-top:5px;font-family:'DM Mono',monospace;}
+  .kpi-count{font-size:11px;margin-top:4px;font-weight:500;}
+  .kpi.done .kpi-count{color:var(--done);}.kpi.live .kpi-count{color:var(--live);}.kpi.setup .kpi-count{color:var(--setup);}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+  .card-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;}
+  .filter-reset{font-size:11px;color:var(--live);cursor:pointer;background:none;border:none;font-family:'DM Sans',sans-serif;text-decoration:underline;display:none;}
+  .pacing-bar-wrap{background:var(--surface2);border-radius:8px;height:28px;overflow:hidden;display:flex;margin-bottom:10px;}
+  .pacing-seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;font-family:'DM Mono',monospace;color:#000;transition:width .4s ease;white-space:nowrap;overflow:hidden;}
+  .pacing-done{background:var(--done);}.pacing-live{background:var(--live);}.pacing-setup{background:var(--setup);}
+  .pacing-legend{display:flex;gap:20px;font-size:12px;color:var(--muted);margin-bottom:10px;}
+  .pacing-legend span{display:flex;align-items:center;gap:5px;}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .pacing-meta{font-size:12px;color:var(--muted);line-height:1.5;}
+  .pacing-meta strong{color:var(--text);}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  .chart-wrap{position:relative;height:220px;}
+  .forecast-card{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--setup);border-radius:12px;padding:20px;margin-bottom:16px;}
+  .forecast-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}
+  .forecast-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);}
+  .forecast-title span{display:block;font-size:22px;font-weight:700;color:var(--setup);letter-spacing:-.5px;margin-top:4px;text-transform:none;}
+  .forecast-scenarios{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+  .scenario{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;}
+  .scenario.best{border-color:var(--done);}
+  .scenario-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px;font-weight:600;}
+  .scenario-val{font-size:20px;font-weight:700;color:var(--text);letter-spacing:-.5px;}
+  .scenario.best .scenario-val{color:var(--done);}
+  .scenario-sub{font-size:11px;color:var(--muted);margin-top:4px;font-family:'DM Mono',monospace;}
+  .forecast-bar-wrap{background:var(--surface2);border-radius:8px;height:24px;overflow:hidden;display:flex;margin-bottom:8px;}
+  .forecast-bar-seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:rgba(0,0,0,.7);white-space:nowrap;overflow:hidden;}
+  .fc-realized{background:var(--income);}
+  .fc-q3{background:color-mix(in srgb,var(--setup) 70%,transparent);}
+  .fc-q4{background:color-mix(in srgb,var(--setup) 35%,transparent);}
+  .forecast-bar-legend{display:flex;gap:16px;font-size:11px;color:var(--muted);flex-wrap:wrap;}
+  .forecast-bar-legend span{display:flex;align-items:center;gap:5px;}
+  .forecast-assumptions{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.7;}
+  .forecast-assumptions strong{color:var(--text);}
+  .supply-rows{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;}
+  .supply-row{display:flex;align-items:center;gap:12px;}
+  .supply-name{width:90px;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0;}
+  .supply-bar-wrap{flex:1;background:var(--surface2);border-radius:4px;height:8px;overflow:hidden;}
+  .supply-bar{height:100%;border-radius:4px;}
+  .supply-vals{display:flex;gap:8px;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);white-space:nowrap;width:165px;justify-content:flex-end;}
+  .supply-pct{color:var(--text);font-weight:500;}
+  .donut-wrap{display:flex;align-items:center;gap:24px;}
+  .donut-canvas{position:relative;width:180px;height:180px;flex-shrink:0;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  thead th{text-align:left;padding:8px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none;}
+  thead th:hover{color:var(--text);}
+  tbody tr{border-bottom:1px solid color-mix(in srgb,var(--border) 50%,transparent);transition:background .1s;}
+  tbody tr:hover{background:var(--surface2);}
+  tbody td{padding:9px 10px;font-family:'DM Mono',monospace;color:var(--muted);}
+  tbody td:first-child{font-family:'DM Sans',sans-serif;color:var(--text);font-weight:500;font-size:13px;}
+  .status-badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-family:'DM Sans',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-right:2px;}
+  .badge-done{background:color-mix(in srgb,var(--done) 15%,transparent);color:var(--done);}
+  .badge-live{background:color-mix(in srgb,var(--live) 15%,transparent);color:var(--live);}
+  .badge-setup{background:color-mix(in srgb,var(--setup) 15%,transparent);color:var(--setup);}
+  .sort-indicator{margin-left:3px;opacity:.5;}
+  .footer{text-align:center;font-size:11px;color:var(--muted);margin-top:20px;font-family:'DM Mono',monospace;}
+  @media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(3,1fr);}}
+  @media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr);}.two-col{grid-template-columns:1fr;}.forecast-scenarios{grid-template-columns:1fr;}.donut-wrap{flex-direction:column;}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>CTV Dashboard — dentsu NL</h1>
+    <p>Fiscaal jaar 2026 · Data t/m augustus 2026 · Bijgewerkt september 2026</p>
+  </div>
+  <div class="badge">58 campagnes · 15 merken</div>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi done clickable" onclick="toggleFilter('Done')" id="kpi-done">
+    <div class="kpi-label">Done</div>
+    <div class="kpi-value" id="val-done">€555K</div>
+    <div class="kpi-count" id="count-done">43 campagnes</div>
+    <div class="kpi-sub">gerealiseerd</div>
+  </div>
+  <div class="kpi live clickable" onclick="toggleFilter('Live')" id="kpi-live">
+    <div class="kpi-label">Live</div>
+    <div class="kpi-value" id="val-live">€84K</div>
+    <div class="kpi-count" id="count-live">8 campagnes</div>
+    <div class="kpi-sub">actief in uitlevering</div>
+  </div>
+  <div class="kpi setup clickable" onclick="toggleFilter('Set up')" id="kpi-setup">
+    <div class="kpi-label">Set Up</div>
+    <div class="kpi-value" id="val-setup">€136K</div>
+    <div class="kpi-count" id="count-setup">7 campagnes</div>
+    <div class="kpi-sub">geboekt, nog starten</div>
+  </div>
+  <div class="kpi total" id="kpi-total">
+    <div class="kpi-label">Totaal</div>
+    <div class="kpi-value" id="val-total">€796K</div>
+    <div class="kpi-count" style="color:var(--total)" id="count-total">58 campagnes</div>
+    <div class="kpi-sub">heel jaar 2026</div>
+  </div>
+  <div class="kpi income" id="kpi-income">
+    <div class="kpi-label">Total Income YTD</div>
+    <div class="kpi-value" id="val-income">€72,2K</div>
+    <div class="kpi-sub" id="sub-income">van €796K budget</div>
+  </div>
+  <div class="kpi marginKPI" id="kpi-margin">
+    <div class="kpi-label">Marge %</div>
+    <div class="kpi-value" id="val-margin">8,9%</div>
+    <div class="kpi-sub" id="sub-margin">range 6,2%–11,9%</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">
+    <span>Pipeline pacing</span>
+    <button class="filter-reset" id="filter-reset" onclick="clearFilters()">Filters wissen</button>
+  </div>
+  <div class="pacing-bar-wrap">
+    <div class="pacing-seg pacing-done" id="pace-done" style="width:69.7%">€555K (70%)</div>
+    <div class="pacing-seg pacing-live" id="pace-live" style="width:13.3%">€106K (13%)</div>
+    <div class="pacing-seg pacing-setup" id="pace-setup" style="width:17.1%">€136K (17%)</div>
+  </div>
+  <div class="pacing-legend">
+    <span><span class="dot" style="background:var(--done)"></span>Done (69,7%)</span>
+    <span><span class="dot" style="background:var(--live)"></span>Live (13,3%)</span>
+    <span><span class="dot" style="background:var(--setup)"></span>Set Up (17,1%)</span>
+  </div>
+  <div class="pacing-meta" id="pacing-meta">
+    <strong>Uitstekende pacing.</strong> €555K (70%) gerealiseerd terwijl 67% van het jaar verstreken is. Live pipeline €106K (7 camps) loopt t/m sep. Set Up €136K (8 camps) — Zalando A/W (€45,5K), GAMMA Deco (€25K), PPG Histor (€10,5K), Arla Milka (€12K), Mazda CX6, DPG Libelle/Independer. <strong>Forecast: €81K–€113K</strong> afhankelijk van nieuwe Q4-boekingen.
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card" style="margin-bottom:0">
+    <div class="card-title">Budget per maand</div>
+    <div class="chart-wrap"><canvas id="monthChart"></canvas></div>
+  </div>
+  <div class="card" style="margin-bottom:0">
+    <div class="card-title">Pipeline status</div>
+    <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
+  </div>
+</div>
+<div style="margin-bottom:16px"></div>
+
+<div class="forecast-card">
+  <div class="forecast-header">
+    <div class="forecas      <span>Best estimate: €105K</span>
+    </div>
+    <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;text-align:right">Vloer: €77,9K<br>Live + Set Up verzekerd</div>
+  </div>
+  <div class="forecast-scenarios">
+    <div class="scenario">
+      <div class="scenario-label">Conservatief</div>
+      <div class="scenario-val">€98K</div>
+      <div class="scenario-sub">verzekerd + €8K/mnd nieuw</div>
+    </div>
+    <div class="scenario best">
+      <div class="scenario-label">Best estimate ★</div>
+      <div class="scenario-val">€105K</div>
+      <div class="scenario-sub">verzekerd + €9K/mnd nieuw</div>
+    </div>
+    <div class="scenario">
+      <div class="scenario-label">Optimistisch</div>
+      <div class="scenario-val">€113K</div>
+      <div class="scenario-sub">verzekerd + €10K/mnd nieuw</div>
+    </div>
+  </div>
+  <div class="forecast-bar-wrap">
+    <div class="forecast-bar-seg fc-realized" style="width:55%">€57,7K gerealiseerd</div>
+    <div class="forecast-bar-seg fc-q3" style="width:20%">verzekerd €20,2K</div>
+    <div class="forecast-bar-seg fc-q4" style="width:25%">nieuw €27K+</div>
+  </div>
+  <div class="forecast-bar-legend">
+    <span><span class="dot" style="background:var(--income)"></span>Gerealiseerd €57,7K (t/m aug)</span>
+    <span><span class="dot" style="background:color-mix(in srgb,var(--setup) 70%,transparent)"></span>Verzekerd €20,2K (Live €9,5K + Set Up €10,7K)</span>
+    <span><span class="dot" style="background:color-mix(in srgb,var(--setup) 35%,transparent)"></span>Nieuw te boeken €27–45K (sep–dec)</span>
+  </div>
+  <div class="forecast-assumptions">
+    <strong>Aannames:</strong> Live (6 camps) + Set Up (8 camps) = 100% verzekerd · Gezamenlijk €20,2K income · Vloer zonder nieuwe boekingen = <strong>€77,9K</strong> · Nieuw sep–dec op €9K/mnd = <strong>+€27K</strong> · Best estimate ≈ <strong>€105K</strong>.<br><br>
+    <strong>Set Up pipeline (€120K budget):</strong> Zalando A/W (€45,5K) · GAMMA Merk Deco (€25K) · Heinz Bakplaat (€20K) · Arla Milka (€12K) · PPG Histor Kleur (€10,5K) · DPG Media Libelle (€7,3K).
+  </div></div>
+</div>
+
+<div class="card">
+  <div class="card-title">Supply mix — verhoudingen actuals doorgerekend naar totaal 2026 (€602K)</div>
+  <div class="donut-wrap">
+    <div class="donut-canvas"><canvas id="supplyDonut"></canvas></div>
+    <div style="flex:1">
+      <div class="supply-rows">
+        <div class="supply-row">
+          <div class="supply-name">Talpa</div>
+          <div class="supply-bar-wrap"><div class="supply-bar" style="width:47.5%;background:#4a9eff"></div></div>
+          <div class="supply-vals"><span class="supply-pct">47,5%</span><span>€286K spend</span></div>
+        </div>
+        <div class="supply-row">
+          <div class="supply-name">Amazon</div>
+          <div class="supply-bar-wrap"><div class="supply-bar" style="width:32.2%;background:#34c77b"></div></div>
+          <div class="supply-vals"><span class="supply-pct">32,2%</span><span>€194K spend</span></div>
+        </div>
+        <div class="supply-row">
+          <div class="supply-name">Marge dentsu</div>
+          <div class="supply-bar-wrap"><div class="supply-bar" style="width:11.1%;background:#ff6b9d"></div></div>
+          <div class="supply-vals"><span class="supply-pct">11,1%</span><span>€67K income</span></div>
+        </div>
+        <div class="supply-row">
+          <div class="supply-name">LG</div>
+          <div class="supply-bar-wrap"><div class="supply-bar" style="width:4.7%;background:#a78bfa"></div></div>
+          <div class="supply-vals"><span class="supply-pct">4,7%</span><span>€28K spend</span></div>
+        </div>
+        <div class="supply-row">
+          <div class="supply-name">Titan</div>
+          <div class="supply-bar-wrap"><div class="supply-bar" style="width:2.7%;background:#f5a623"></div></div>
+          <div class="supply-vals"><span class="supply-pct">2,7%</span><span>€16K spend</span></div>
+        </div>
+        <div class="supply-row">
+          <div class="supply-name">DSP fee</div>
+          <div class="supply-bar-wrap"><div class="supply-bar" style="width:1%;background:#6b7494"></div></div>
+          <div class="supply-vals"><span class="supply-pct">1,0%</span><span>€6K</span></div>
+        </div>
+      </div>
+      <!-- Reconciliatie status per publisher -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px;">
+        <div style="background:var(--surface2);border-radius:8px;padding:12px;border:1px solid var(--border)">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px;font-weight:600">Talpa</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text)">€150,6K</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;font-family:'DM Mono',monospace">uitbetaald jan–apr</div>
+          <div style="font-size:10px;color:var(--setup);margin-top:4px">⚠ mei+jun: publisher data ontbreekt</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:12px;border:1px solid var(--done)">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px;font-weight:600">LG</div>
+          <div style="font-size:13px;font-weight:700;color:var(--done)">€21,8K</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;font-family:'DM Mono',monospace">uitbetaald jan–jun (facturen)</div>
+          <div style="font-size:10px;color:var(--done);margin-top:4px">✓ volledig gereconcilieerd</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:12px;border:1px solid var(--border)">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px;font-weight:600">Titan</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text)">€11,9K</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;font-family:'DM Mono',monospace">uitbetaald jan–apr</div>
+          <div style="font-size:10px;color:var(--setup);margin-top:4px">⚠ mei+jun: publisher data ontbreekt</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-top:12px;">
+        Magnite credit jan–jun: <strong style="color:var(--text)">€257,3K</strong> · Uitbetaald: <strong style="color:var(--text)">€184,2K</strong> · Openstaand (Talpa+Titan mei/jun): <strong style="color:var(--setup)">€73,7K</strong><br>
+        LG: verschil slechts €277 over 6 maanden (0,4%) — structureel solide. Titan: structureel €255/mnd negatief verschil (Titan factureert boven Magnite).
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Magnite reconciliatie — jan t/m jun 2026</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Publisher</th>
+        <th>Magnite credit</th>
+        <th>Uitbetaald</th>
+        <th>Verschil €</th>
+        <th>Verschil %</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="font-family:'DM Sans',sans-serif;font-weight:600">Talpa</td>
+        <td>€222.583</td><td>€150.604</td>
+        <td style="color:var(--setup)">+€71.979</td>
+        <td style="color:var(--setup)">+32,3%</td>
+        <td><span class="status-badge badge-setup">Mei+jun open</span></td>
+      </tr>
+      <tr>
+        <td style="font-family:'DM Sans',sans-serif;font-weight:600">LG</td>
+        <td>€22.037</td><td>€21.759</td>
+        <td style="color:var(--done)">+€278</td>
+        <td style="color:var(--done)">+1,3%</td>
+        <td><span class="status-badge badge-done">✓ Volledig</span></td>
+      </tr>
+      <tr>
+        <td style="font-family:'DM Sans',sans-serif;font-weight:600">Titan</td>
+        <td>€12.661</td><td>€11.878</td>
+        <td style="color:var(--margin)">+€783</td>
+        <td style="color:var(--margin)">+6,2%</td>
+        <td><span class="status-badge badge-setup">Mei+jun open</span></td>
+      </tr>
+      <tr style="border-top:1px solid var(--border);font-weight:700">
+        <td style="font-family:'DM Sans',sans-serif;font-weight:700;color:var(--text)">Totaal</td>
+        <td style="color:var(--text)">€257.281</td>
+        <td style="color:var(--text)">€184.241</td>
+        <td style="color:var(--setup)">+€73.040</td>
+        <td style="color:var(--setup)">+28,4%</td>
+        <td><span class="status-badge badge-live">Deels open</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <div style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;">
+    Het grote verschil Talpa (€71,9K) en Titan (€783) is geen verlies — Talpa en Titan hebben mei+jun nog niet gefactureerd. LG loopt volledig op factuur en heeft slechts €278 (1,3%) verschil over 6 maanden.
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Brand breakdown — klik kolomkop om te sorteren</div>
+  <table>
+    <thead>
+      <tr>
+        <th onclick="sortTable(0)">Brand <span class="sort-indicator" id="sort-0">↕</span></th>
+        <th onclick="sortTable(6)" style="text-align:center">Camps <span class="sort-indicator" id="sort-6">↕</span></th>
+        <th onclick="sortTable(1)">Budget <span class="sort-indicator" id="sort-1">↓</span></th>
+        <th onclick="sortTable(7)">% Aandeel <span class="sort-indicator" id="sort-7">↕</span></th>
+        <th onclick="sortTable(2)">Income <span class="sort-indicator" id="sort-2">↕</span></th>
+        <th onclick="sortTable(8)">Income/camp <span class="sort-indicator" id="sort-8">↕</span></th>
+        <th onclick="sortTable(3)">Marge % <span class="sort-indicator" id="sort-3">↕</span></th>
+        <th onclick="sortTable(4)">CPM <span class="sort-indicator" id="sort-4">↕</span></th>
+        <th onclick="sortTable(5)">Status <span class="sort-indicator" id="sort-5">↕</span></th>
+      </tr>
+    </thead>
+    <tbody id="brandTable"></tbody>
+  </table>
+</div>
+
+<div class="footer">dentsu CTV NL · Internal use only · Data t/m september 2026 · 58 campagnes · 13 merken</div>
+
+
+</body>
+</html>
