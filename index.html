@@ -9,33 +9,35 @@
 // DATA
 // ============================================================
 const statusData = {
-  'Done':   { budget:554726, income:47167, camps:43 },
-  'Live':   { budget:105781, income:11202, camps:7  },
-  'Set up': { budget:135788, income:13805, camps:8  },
+  'Done':   { budget:640507, income:56706, camps:49 },
+  'Live':   { budget:128968, income:12638, camps:9  },
+  'Set up': { budget:63569,  income:5286,  camps:3  },
 };
 const monthChartData = {
   labels: ['Jan','Feb','Mrt','Apr','Mei','Jun','Jul','Aug','Sep'],
-  Done:   [110000,61029,76289,94174,48696,32027,91575,33655,6280],
-  Live:   [0,0,0,0,0,0,0,85781,20000],
-  'Set up':[0,0,0,0,0,0,0,10000,125788],
+  Done:   [110000,61029,76289,94174,48696,32027,91575,93718,33000],
+  Live:   [0,0,0,0,0,0,12629,0,116339],
+  'Set up':[0,0,0,0,0,0,0,0,63569],
 };
 const brands = [
-  { brand:'DPG',        budget:179187,income:15253,margin:8.52, cpm:23.16,camps:17,statuses:{'Done':14,'Live':1,'Set up':2}},
-  { brand:'Heinz',      budget:110000,income:8613, margin:7.83, cpm:23.21,camps:3, statuses:{'Done':2,'Live':1}},
-  { brand:'Arla',       budget:99500, income:8497, margin:8.54, cpm:23.14,camps:8, statuses:{'Done':7,'Set up':1}},
-  { brand:'GAMMA',      budget:47500, income:5643, margin:11.88,cpm:18.75,camps:4, statuses:{'Live':2,'Set up':2}},
-  { brand:'Zalando',    budget:45500, income:5405, margin:11.88,cpm:23.20,camps:2, statuses:{'Set up':2}},
-  { brand:'PPG',        budget:40140, income:3338, margin:8.32, cpm:23.13,camps:4, statuses:{'Done':2,'Live':1,'Set up':1}},
-  { brand:'Fastned',    budget:40000, income:2495, margin:6.24, cpm:23.31,camps:2, statuses:{'Done':2}},
-  { brand:'Xpeng',      budget:65800, income:6239, margin:9.48, cpm:23.29,camps:3, statuses:{'Done':2,'Live':1}},
-  { brand:'Intergamma', budget:35000, income:4158, margin:11.88,cpm:24.23,camps:3, statuses:{'Done':3}},
-  { brand:'FastNed',    budget:30000, income:2851, margin:9.50, cpm:23.00,camps:1, statuses:{'Done':1}},
-  { brand:'Mazda',      budget:20000, income:1663, margin:8.32, cpm:23.64,camps:1, statuses:{'Set up':1}},
-  { brand:'Paulig',     budget:18540, income:1682, margin:9.07, cpm:23.00,camps:5, statuses:{'Done':5}},
-  { brand:'Kellogs',    budget:18691, income:1554, margin:8.32, cpm:23.29,camps:2, statuses:{'Done':2}},
-  { brand:'Pandora',    budget:16437, income:1543, margin:9.39, cpm:23.00,camps:1, statuses:{'Done':1}},
-  { brand:'BMW',        budget:15000, income:1782, margin:11.88,cpm:23.40,camps:1, statuses:{'Live':1}},
-  { brand:'Hunkemoller',budget:15000, income:1456, margin:9.70, cpm:23.00,camps:1, statuses:{'Done':1}},
+  { brand:'DPG',          budget:189866,income:16141,margin:8.50, cpm:23.17,camps:18,statuses:{'Done':16,'Live':1,'Set up':1}},
+  { brand:'Heinz',        budget:110000,income:8613, margin:7.83, cpm:23.21,camps:3, statuses:{'Done':2,'Live':1}},
+  { brand:'Arla',         budget:100000,income:8539, margin:8.54, cpm:23.12,camps:9, statuses:{'Done':7,'Live':2}},
+  { brand:'GAMMA',        budget:47000, income:5584, margin:11.88,cpm:20.98,camps:4, statuses:{'Done':2,'Live':2}},
+  { brand:'Zalando',      budget:45500, income:5405, margin:11.88,cpm:23.20,camps:2, statuses:{'Live':1,'Set up':1}},
+  { brand:'Oostenrijks',  budget:42390, income:3525, margin:8.32, cpm:23.40,camps:1, statuses:{'Set up':1}},
+  { brand:'PPG',          budget:40140, income:3338, margin:8.32, cpm:23.13,camps:4, statuses:{'Done':3,'Set up':1}},
+  { brand:'Fastned',      budget:40000, income:2495, margin:6.24, cpm:23.31,camps:2, statuses:{'Done':2}},
+  { brand:'Xpeng',        budget:65800, income:6239, margin:9.48, cpm:23.29,camps:3, statuses:{'Done':2,'Live':1}},
+  { brand:'Intergamma',   budget:35000, income:4158, margin:11.88,cpm:24.23,camps:3, statuses:{'Done':3}},
+  { brand:'FastNed',      budget:30000, income:2851, margin:9.50, cpm:23.00,camps:1, statuses:{'Done':1}},
+  { brand:'Mazda',        budget:20000, income:1663, margin:8.32, cpm:23.64,camps:1, statuses:{'Live':1}},
+  { brand:'Paulig',       budget:18540, income:1682, margin:9.07, cpm:23.00,camps:5, statuses:{'Done':5}},
+  { brand:'Kellogs',      budget:18691, income:1554, margin:8.32, cpm:23.30,camps:2, statuses:{'Done':2}},
+  { brand:'Pandora',      budget:16437, income:1543, margin:9.39, cpm:23.00,camps:1, statuses:{'Done':1}},
+  { brand:'BMW',          budget:15000, income:1782, margin:11.88,cpm:23.40,camps:1, statuses:{'Done':1}},
+  { brand:'Hunkemoller',  budget:15000, income:1456, margin:9.70, cpm:23.00,camps:1, statuses:{'Done':1}},
+  { brand:'Storck',       budget:6430,  income:764,  margin:11.88,cpm:23.00,camps:1, statuses:{'Live':1}},
 ];
 
 // ============================================================
@@ -143,9 +145,9 @@ function drawStatusDonut(){
   const H=canvas.offsetHeight||220; canvas.height=H;
   ctx.clearRect(0,0,W,H);
   const data=[
-    {v:554726,c:'rgba(52,199,123,.85)',l:'Done',   n:42},
+    {v:640507,c:'rgba(52,199,123,.85)',l:'Done',   n:42},
     {v:85781, c:'rgba(74,158,255,.85)', l:'Live',   n:6},
-    {v:135788,c:'rgba(245,166,35,.85)', l:'Set Up', n:6},
+    {v:63569,c:'rgba(245,166,35,.85)', l:'Set Up', n:6},
   ];
   const total=data.reduce((a,d)=>a+d.v,0);
   const cx=W/2, cy=H/2-16, r=Math.min(cx,cy)-20, ri=r*0.62;
@@ -191,7 +193,7 @@ function drawSupplyDonut(){
   });
   ctx.beginPath();ctx.arc(cx,cy,ri,0,2*Math.PI);ctx.fillStyle='#181c27';ctx.fill();
   ctx.fillStyle='#e8eaf0';ctx.font='bold 13px DM Sans,sans-serif';ctx.textAlign='center';
-  ctx.fillText('€796K',cx,cy-4);
+  ctx.fillText('€856K',cx,cy-4);
   ctx.fillStyle='#6b7494';ctx.font='9px DM Sans,sans-serif';
   ctx.fillText('totaal 2026',cx,cy+10);
 }
@@ -354,42 +356,42 @@ window.addEventListener('resize',()=>drawMonthChart([...activeFilters].length>0?
     <h1>CTV Dashboard — dentsu NL</h1>
     <p>Fiscaal jaar 2026 · Data t/m augustus 2026 · Bijgewerkt september 2026</p>
   </div>
-  <div class="badge">58 campagnes · 15 merken</div>
+  <div class="badge">62 campagnes · 17 merken</div>
 </div>
 
 <div class="kpi-grid">
   <div class="kpi done clickable" onclick="toggleFilter('Done')" id="kpi-done">
     <div class="kpi-label">Done</div>
-    <div class="kpi-value" id="val-done">€555K</div>
-    <div class="kpi-count" id="count-done">43 campagnes</div>
+    <div class="kpi-value" id="val-done">€641K</div>
+    <div class="kpi-count" id="count-done">49 campagnes</div>
     <div class="kpi-sub">gerealiseerd</div>
   </div>
   <div class="kpi live clickable" onclick="toggleFilter('Live')" id="kpi-live">
     <div class="kpi-label">Live</div>
     <div class="kpi-value" id="val-live">€84K</div>
-    <div class="kpi-count" id="count-live">8 campagnes</div>
+    <div class="kpi-count" id="count-live">3 campagnes</div>
     <div class="kpi-sub">actief in uitlevering</div>
   </div>
   <div class="kpi setup clickable" onclick="toggleFilter('Set up')" id="kpi-setup">
     <div class="kpi-label">Set Up</div>
-    <div class="kpi-value" id="val-setup">€136K</div>
-    <div class="kpi-count" id="count-setup">7 campagnes</div>
+    <div class="kpi-value" id="val-setup">€64K</div>
+    <div class="kpi-count" id="count-setup">9 campagnes</div>
     <div class="kpi-sub">geboekt, nog starten</div>
   </div>
   <div class="kpi total" id="kpi-total">
     <div class="kpi-label">Totaal</div>
-    <div class="kpi-value" id="val-total">€796K</div>
-    <div class="kpi-count" style="color:var(--total)" id="count-total">58 campagnes</div>
+    <div class="kpi-value" id="val-total">€856K</div>
+    <div class="kpi-count" style="color:var(--total)" id="count-total">62 campagnes</div>
     <div class="kpi-sub">heel jaar 2026</div>
   </div>
   <div class="kpi income" id="kpi-income">
     <div class="kpi-label">Total Income YTD</div>
-    <div class="kpi-value" id="val-income">€72,2K</div>
-    <div class="kpi-sub" id="sub-income">van €796K budget</div>
+    <div class="kpi-value" id="val-income">€77,3K</div>
+    <div class="kpi-sub" id="sub-income">van €856K budget</div>
   </div>
   <div class="kpi marginKPI" id="kpi-margin">
     <div class="kpi-label">Marge %</div>
-    <div class="kpi-value" id="val-margin">8,9%</div>
+    <div class="kpi-value" id="val-margin">9,0%</div>
     <div class="kpi-sub" id="sub-margin">range 6,2%–11,9%</div>
   </div>
 </div>
@@ -400,17 +402,17 @@ window.addEventListener('resize',()=>drawMonthChart([...activeFilters].length>0?
     <button class="filter-reset" id="filter-reset" onclick="clearFilters()">Filters wissen</button>
   </div>
   <div class="pacing-bar-wrap">
-    <div class="pacing-seg pacing-done" id="pace-done" style="width:69.7%">€555K (70%)</div>
-    <div class="pacing-seg pacing-live" id="pace-live" style="width:13.3%">€106K (13%)</div>
-    <div class="pacing-seg pacing-setup" id="pace-setup" style="width:17.1%">€136K (17%)</div>
+    <div class="pacing-seg pacing-done" id="pace-done" style="width:74.9%">€641K (75%)</div>
+    <div class="pacing-seg pacing-live" id="pace-live" style="width:15.1%">€129K (15%)</div>
+    <div class="pacing-seg pacing-setup" id="pace-setup" style="width:7.5%">€64K (7%)</div>
   </div>
   <div class="pacing-legend">
-    <span><span class="dot" style="background:var(--done)"></span>Done (69,7%)</span>
-    <span><span class="dot" style="background:var(--live)"></span>Live (13,3%)</span>
-    <span><span class="dot" style="background:var(--setup)"></span>Set Up (17,1%)</span>
+    <span><span class="dot" style="background:var(--done)"></span>Done (74,9%)</span>
+    <span><span class="dot" style="background:var(--live)"></span>Live (15,1%)</span>
+    <span><span class="dot" style="background:var(--setup)"></span>Set Up (7,5%)</span>
   </div>
   <div class="pacing-meta" id="pacing-meta">
-    <strong>Uitstekende pacing.</strong> €555K (70%) gerealiseerd terwijl 67% van het jaar verstreken is. Live pipeline €106K (7 camps) loopt t/m sep. Set Up €136K (8 camps) — Zalando A/W (€45,5K), GAMMA Deco (€25K), PPG Histor (€10,5K), Arla Milka (€12K), Mazda CX6, DPG Libelle/Independer. <strong>Forecast: €81K–€113K</strong> afhankelijk van nieuwe Q4-boekingen.
+    <strong>Uitstekende pacing.</strong> €641K (75%) gerealiseerd terwijl 75% van het jaar verstreken is. Live pipeline €129K (9 camps). Nieuwe merken: Oostenrijks Toeristenburo (€42K Set Up) en Storck (€6,4K Live). Set Up gekrompen naar €64K (3 camps). <strong>Forecast: €81K–€113K</strong> afhankelijk van nieuwe Q4-boekingen.
   </div>
 </div>
 
@@ -601,7 +603,7 @@ window.addEventListener('resize',()=>drawMonthChart([...activeFilters].length>0?
   </table>
 </div>
 
-<div class="footer">dentsu CTV NL · Internal use only · Data t/m september 2026 · 58 campagnes · 13 merken</div>
+<div class="footer">dentsu CTV NL · Internal use only · Data t/m september 2026 · 62 campagnes · 13 merken</div>
 
 
 </body>
